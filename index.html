@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Klassen-Lerntool 2.0 – v68 Klassenkarten Swipe Ansicht Final</title>
+  <title>Klassen-Lerntool 2.0 – v69 Klassenkarte vollständig sichtbar</title>
   <style>
     :root{
       --bg1:#f6efe4;
@@ -4132,6 +4132,42 @@ body.admin-active .admin-only-hint{display:block}
       #classSharedLearnCard .learn-card-face{padding:22px 18px !important;}
       #classSharedLearnWrap::before{left:10px;}
       #classSharedLearnWrap::after{right:10px;}
+    }
+
+
+    /* V69: Klassenkarte wirklich vollständig sichtbar, flacher und ohne großen Leerraum */
+    #classCardsSharedScreen{
+      max-width:960px !important;
+      padding:18px 22px 18px !important;
+    }
+    #classCardsSharedScreen .detail-head{ margin-bottom:8px !important; }
+    #classCardsSharedScreen .subtitle{ margin:8px 0 12px !important; line-height:1.32 !important; font-size:.95rem !important; }
+    #classCardsSharedScreen .class-learn-top{ margin-top:8px !important; gap:8px !important; }
+    #classCardsSharedScreen .class-learn-stat{ padding:9px 12px !important; border-radius:16px !important; }
+    #classCardsSharedScreen .class-learn-stat strong{ font-size:1.05rem !important; line-height:1.05 !important; }
+    #classCardsSharedScreen .class-learn-stat span{ font-size:.76rem !important; line-height:1.1 !important; }
+    #classCardsSharedScreen .learn-progress{ margin-top:10px !important; padding:8px 12px !important; min-height:42px !important; }
+    #classSharedLearnWrap{ margin-top:12px !important; padding:0 !important; overflow:visible !important; }
+    #classSharedLearnCard.class-card-learn{ min-height:190px !important; height:190px !important; border-radius:26px !important; margin:0 !important; }
+    #classSharedLearnCard .learn-card-inner,
+    #classSharedLearnCard .learn-card-face{ min-height:190px !important; height:190px !important; border-radius:26px !important; }
+    #classSharedLearnCard .learn-card-face{ padding:20px 24px !important; border:1px solid rgba(88,121,138,.18) !important; box-shadow:0 12px 26px rgba(33,64,82,.10) !important; }
+    #classSharedLearnCard .learn-card-face small{ padding:6px 11px !important; font-size:.72rem !important; margin-bottom:6px !important; }
+    #classSharedLearnCard .learn-card-face h3{ font-size:clamp(1.45rem,2.8vw,2.25rem) !important; line-height:1.08 !important; max-width:700px !important; margin:0 auto !important; }
+    #classSharedLearnCard .learn-card-back p{ font-size:clamp(1rem,2vw,1.25rem) !important; line-height:1.36 !important; max-height:118px !important; overflow:auto !important; padding:0 4px !important; }
+    #classCardsSharedScreen .class-tap-note{ margin:10px auto 0 !important; padding:8px 12px !important; font-size:.84rem !important; line-height:1.25 !important; width:min(780px,100%) !important; }
+    #classCardsSharedScreen .class-learn-actions-v21{ margin-top:10px !important; display:grid !important; grid-template-columns:repeat(3,minmax(0,1fr)) !important; gap:8px !important; }
+    #classCardsSharedScreen .class-learn-actions-v21 button{ min-height:46px !important; border-radius:16px !important; font-size:.92rem !important; }
+    @media(max-width:720px){
+      #classCardsSharedScreen{ padding:14px 14px 16px !important; }
+      #classCardsSharedScreen .class-learn-top{ grid-template-columns:repeat(3,minmax(0,1fr)) !important; }
+      #classSharedLearnCard.class-card-learn,
+      #classSharedLearnCard .learn-card-inner,
+      #classSharedLearnCard .learn-card-face{ min-height:170px !important; height:170px !important; border-radius:24px !important; }
+      #classSharedLearnCard .learn-card-face{ padding:16px 14px !important; }
+      #classSharedLearnCard .learn-card-face h3{ font-size:clamp(1.35rem,5vw,2rem) !important; }
+      #classSharedLearnCard .learn-card-back p{ max-height:100px !important; }
+      #classCardsSharedScreen .class-learn-actions-v21{ grid-template-columns:1fr !important; }
     }
 
   </style>
