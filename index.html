@@ -4335,6 +4335,73 @@ body.admin-active .admin-only-hint{display:block}
     .mode-choice-title{position:relative;z-index:3;display:block;padding:0 24px 46px;text-align:center;font-size:clamp(2rem,4.3vw,3.1rem);line-height:1.05;letter-spacing:-.055em;font-weight:1000;color:#1f2d36;}
     @media(max-width:760px){#modeChoiceScreen{padding:12px 0!important}.mode-choice-back-row{margin-bottom:22px}.mode-choice-only{grid-template-columns:1fr;gap:22px}.big-mode-image-btn{min-height:300px;border-radius:32px;border-width:8px}.big-mode-image-btn::after{height:44%;border-radius:28px 28px 0 0}.mode-choice-icon{top:62%;border-radius:28px}.mode-choice-title{padding-bottom:36px}}
 
+
+
+/* V72: Exakte Clean-Maske wie Mockup nach der Klausurwahl */
+#examScreen.mode-choice-view{
+  width:min(1280px,100%) !important;
+}
+#examScreen.mode-choice-view #modeChoiceScreen{
+  display:block;
+  margin-top:0 !important;
+  padding:clamp(12px,2.6vw,28px) !important;
+  background:transparent !important;
+  border:0 !important;
+  box-shadow:none !important;
+}
+#examScreen.mode-choice-view .mode-choice-back-row{
+  margin:0 0 clamp(42px,8vh,92px) !important;
+}
+#examScreen.mode-choice-view .mode-choice-only{
+  max-width:1180px !important;
+  margin:0 auto !important;
+  grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+  gap:clamp(34px,4.6vw,58px) !important;
+}
+#examScreen.mode-choice-view .big-mode-image-btn{
+  min-height:clamp(360px,55vh,520px) !important;
+  border-radius:38px !important;
+  border:10px solid rgba(255,255,255,.76) !important;
+  background:#fff !important;
+  box-shadow:0 20px 56px rgba(33,64,82,.12) !important;
+}
+#examScreen.mode-choice-view .big-mode-image-btn::before{
+  height:68% !important;
+  filter:saturate(.78) contrast(.90) brightness(1.12) !important;
+}
+#examScreen.mode-choice-view .big-mode-image-btn::after{
+  height:42% !important;
+  background:#fff !important;
+  border-radius:34px 34px 0 0 !important;
+}
+#examScreen.mode-choice-view .own-mode::before{
+  background-image:url('https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1200&q=80') !important;
+  background-position:center 44% !important;
+}
+#examScreen.mode-choice-view .class-mode::before{
+  background-image:url('https://images.unsplash.com/photo-1577896851231-70ef18881754?auto=format&fit=crop&w=1200&q=80') !important;
+  background-position:center 50% !important;
+}
+#examScreen.mode-choice-view .mode-choice-title{
+  display:block !important;
+  position:relative !important;
+  z-index:4 !important;
+  padding:0 20px 46px !important;
+  text-align:center !important;
+  font-size:clamp(2.15rem,4.2vw,3.15rem) !important;
+  font-weight:1000 !important;
+  letter-spacing:-.055em !important;
+  color:#1f2d36 !important;
+}
+#examScreen.mode-choice-view .mode-choice-icon{
+  top:63% !important;
+  width:clamp(92px,11vw,132px) !important;
+  height:clamp(92px,11vw,132px) !important;
+}
+@media(max-width:760px){
+  #examScreen.mode-choice-view .mode-choice-only{grid-template-columns:1fr !important;}
+  #examScreen.mode-choice-view .big-mode-image-btn{min-height:300px !important;border-width:8px !important;border-radius:32px !important;}
+}
 </style>
 </head>
 <body>
@@ -9106,5 +9173,82 @@ body.admin-active .admin-only-hint{display:block}
 
 
 
+
+
+<script>
+/* V72: Finale Modusmaske direkt NACH Klausurwahl + sichere Buttonlogik
+   Wichtig: Es wird keine bestehende Funktion entfernt. Diese kleine Sicherung sorgt nur dafür,
+   dass SKL 07.05. immer zuerst die neue Auswahlmaske zeigt. */
+(function(){
+  function q(id){ return document.getElementById(id); }
+  function showOnly(target){
+    const examGrid = q('examGrid');
+    const examScreen = q('examScreen');
+    const screens = [
+      q('modeChoiceScreen'), q('examDetail'), q('createCardsScreen'), q('learnCardsScreen'),
+      q('quizModeScreen'), q('trueFalseModeScreen'), q('examModeScreen'), q('manageScreen'),
+      q('classModeScreen'), q('classWordsLearnScreen'), q('classCardsSharedScreen'), q('classGamesScreen'),
+      q('hitGameScreen'), q('memoryGameScreen'), q('duelGameScreen')
+    ].filter(Boolean);
+    screens.forEach(s => s.classList.remove('active'));
+    if(examGrid) examGrid.style.display = target === 'examGrid' ? 'grid' : 'none';
+    if(examScreen) examScreen.classList.toggle('mode-choice-view', target === q('modeChoiceScreen'));
+    if(target && target !== 'examGrid') target.classList.add('active');
+    window.scrollTo({top:0, behavior:'smooth'});
+  }
+
+  window.addEventListener('DOMContentLoaded', function(){
+    const sklCard = document.querySelector('[data-exam="skl-0705"]');
+    const modeChoice = q('modeChoiceScreen');
+    const own = q('openOwnArea');
+    const klass = q('openClassMeeting');
+    const back = q('modeChoiceBackBtn');
+    const backToExams = q('backToExams');
+
+    if(sklCard && modeChoice){
+      sklCard.addEventListener('click', function(e){
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        localStorage.setItem('lerntool_current_exam','skl_0705');
+        showOnly(modeChoice);
+      }, true);
+    }
+
+    if(own){
+      own.addEventListener('click', function(e){
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        showOnly(q('examDetail'));
+      }, true);
+    }
+
+    if(klass){
+      klass.addEventListener('click', function(e){
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        showOnly(q('classModeScreen'));
+        if(typeof renderClassChat === 'function') renderClassChat();
+        if(typeof updateProbeExamLock === 'function') updateProbeExamLock();
+      }, true);
+    }
+
+    if(back){
+      back.addEventListener('click', function(e){
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        showOnly('examGrid');
+      }, true);
+    }
+
+    if(backToExams){
+      backToExams.addEventListener('click', function(e){
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        showOnly(modeChoice);
+      }, true);
+    }
+  });
+})();
+</script>
 </body>
 </html>
