@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Klassen-Lerntool 2.0 – v69 Klassenkarten Design wie Normalmodus</title>
+  <title>Klassen-Lerntool 2.0 – v71 Modus-Auswahl Clean</title>
   <style>
     :root{
       --bg1:#f6efe4;
@@ -4313,6 +4313,28 @@ body.admin-active .admin-only-hint{display:block}
         top:22px !important;
       }
     }
+
+
+    /* V71: Zwischenmaske wie Mockup – klare Namen, ruhige Bilder, keine krassen Kontraste */
+    #examScreen.mode-choice-view .topbar{ display:none !important; }
+    #modeChoiceScreen{display:none;margin-top:0;padding:clamp(12px,2.5vw,24px)!important;border-radius:0!important;background:transparent!important;border:0!important;box-shadow:none!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important;animation:fadeIn .25s ease both;}
+    #modeChoiceScreen.active{display:block;}
+    .mode-choice-back-row{display:flex;justify-content:flex-start;margin:0 0 clamp(34px,8vh,90px);}
+    #modeChoiceBackBtn{min-width:150px;min-height:58px!important;border-radius:18px!important;background:rgba(255,255,255,.82)!important;color:#1f2d36!important;border:1px solid rgba(88,121,138,.13)!important;box-shadow:0 10px 28px rgba(33,64,82,.10)!important;}
+    .mode-choice-only{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:clamp(28px,4vw,46px);align-items:center;max-width:1180px;margin:0 auto;}
+    .big-mode-image-btn{position:relative;min-height:clamp(360px,55vh,520px);border-radius:38px;overflow:hidden;isolation:isolate;border:10px solid rgba(255,255,255,.74);box-shadow:0 22px 56px rgba(33,64,82,.12);background:#ffffff;transform:translateY(0) scale(1);transition:transform .2s ease, box-shadow .2s ease;display:flex;flex-direction:column;justify-content:flex-end;padding:0;}
+    .big-mode-image-btn:hover,.big-mode-image-btn:focus-visible{transform:translateY(-4px);box-shadow:0 28px 70px rgba(33,64,82,.18);outline:none;}
+    .big-mode-image-btn::before{content:"";position:absolute;left:0;top:0;right:0;height:68%;z-index:-2;background-position:center;background-size:cover;filter:saturate(.82) contrast(.92) brightness(1.08);transform:scale(1.01);transition:transform .35s ease;}
+    .big-mode-image-btn:hover::before,.big-mode-image-btn:focus-visible::before{transform:scale(1.04);}
+    .big-mode-image-btn::after{content:"";position:absolute;left:0;right:0;bottom:0;height:42%;z-index:-1;background:#ffffff;border-radius:34px 34px 0 0;box-shadow:0 -18px 34px rgba(255,255,255,.58);}
+    .big-mode-image-btn.own-mode::before{background-image:url('https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1200&q=80');background-position:center 44%;}
+    .big-mode-image-btn.class-mode::before{background-image:url('https://images.unsplash.com/photo-1577896851231-70ef18881754?auto=format&fit=crop&w=1200&q=80');background-position:center 50%;}
+    .mode-choice-icon{position:absolute;left:50%;top:63%;transform:translate(-50%,-50%);width:clamp(92px,11vw,132px);height:clamp(92px,11vw,132px);border-radius:34px;display:grid;place-items:center;font-size:clamp(3rem,5.8vw,5rem);border:1px solid rgba(88,121,138,.10);box-shadow:0 14px 34px rgba(33,64,82,.13);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);z-index:2;}
+    .own-mode .mode-choice-icon{background:rgba(231,250,235,.88);color:#2f714d;}
+    .class-mode .mode-choice-icon{background:rgba(226,241,252,.90);color:#2f5f9b;}
+    .mode-choice-title{position:relative;z-index:3;display:block;padding:0 24px 46px;text-align:center;font-size:clamp(2rem,4.3vw,3.1rem);line-height:1.05;letter-spacing:-.055em;font-weight:1000;color:#1f2d36;}
+    @media(max-width:760px){#modeChoiceScreen{padding:12px 0!important}.mode-choice-back-row{margin-bottom:22px}.mode-choice-only{grid-template-columns:1fr;gap:22px}.big-mode-image-btn{min-height:300px;border-radius:32px;border-width:8px}.big-mode-image-btn::after{height:44%;border-radius:28px 28px 0 0}.mode-choice-icon{top:62%;border-radius:28px}.mode-choice-title{padding-bottom:36px}}
+
 </style>
 </head>
 <body>
@@ -4463,6 +4485,22 @@ body.admin-active .admin-only-hint{display:block}
           <span class="exam-sub">Platzhalter für die nächste Klausur, z.B. Anatomie, Psychologie oder Grundlagen.</span>
         </button>
       </div>
+
+      <section id="modeChoiceScreen" class="exam-detail" aria-label="Lernmodus auswählen">
+        <div class="mode-choice-back-row">
+          <button id="modeChoiceBackBtn" class="back-btn" type="button">← Zurück</button>
+        </div>
+        <div class="mode-choice-only">
+          <button id="openOwnArea" class="big-mode-image-btn own-mode" type="button" aria-label="Eigener Bereich">
+            <span class="mode-choice-icon" aria-hidden="true">👤</span>
+            <span class="mode-choice-title">Eigener Bereich</span>
+          </button>
+          <button id="openClassMeeting" class="big-mode-image-btn class-mode" type="button" aria-label="Klassentreffen">
+            <span class="mode-choice-icon" aria-hidden="true">👥</span>
+            <span class="mode-choice-title">Klassentreffen</span>
+          </button>
+        </div>
+      </section>
 
       <section id="examDetail" class="exam-detail">
         <div class="detail-head">
@@ -5360,6 +5398,10 @@ body.admin-active .admin-only-hint{display:block}
     const examGrid = document.getElementById('examGrid');
     const examDetail = document.getElementById('examDetail');
     const backToExams = document.getElementById('backToExams');
+    const modeChoiceScreen = document.getElementById('modeChoiceScreen');
+    const openOwnArea = document.getElementById('openOwnArea');
+    const openClassMeeting = document.getElementById('openClassMeeting');
+    const modeChoiceBackBtn = document.getElementById('modeChoiceBackBtn');
     const adminOpenBtn = document.getElementById('adminOpenBtn');
     const adminPanel = document.getElementById('adminPanel');
     const adminForm = document.getElementById('adminForm');
@@ -5600,6 +5642,7 @@ body.admin-active .admin-only-hint{display:block}
 
     function showToolScreen(screen){
       const screens = [
+        modeChoiceScreen,
         examDetail,
         createCardsScreen,
         learnCardsScreen,
@@ -5621,6 +5664,7 @@ body.admin-active .admin-only-hint{display:block}
       });
 
       examGrid.style.display = screen === 'examGrid' ? 'grid' : 'none';
+      examScreen.classList.toggle('mode-choice-view', screen === modeChoiceScreen);
 
       if(screen && screen !== 'examGrid'){
         screen.classList.add('active');
@@ -5687,11 +5731,29 @@ body.admin-active .admin-only-hint{display:block}
     });
 
     document.querySelector('[data-exam="skl-0705"]').addEventListener('click', ()=>{
-      showToolScreen(examDetail);
+      showToolScreen(modeChoiceScreen);
+      window.scrollTo({top:0, behavior:'smooth'});
     });
 
     backToExams.addEventListener('click', ()=>{
+      showToolScreen(modeChoiceScreen);
+    });
+
+    modeChoiceBackBtn.addEventListener('click', ()=>{
       showToolScreen('examGrid');
+      window.scrollTo({top:0, behavior:'smooth'});
+    });
+
+    openOwnArea.addEventListener('click', ()=>{
+      showToolScreen(examDetail);
+      window.scrollTo({top:0, behavior:'smooth'});
+    });
+
+    openClassMeeting.addEventListener('click', ()=>{
+      showToolScreen(classModeScreen);
+      renderClassChat();
+      updateProbeExamLock();
+      window.scrollTo({top:0, behavior:'smooth'});
     });
 
     adminOpenBtn.addEventListener('click', ()=>{
@@ -7646,7 +7708,7 @@ body.admin-active .admin-only-hint{display:block}
       window.scrollTo({top:0, behavior:'smooth'});
     });
 
-    backFromClassMode.addEventListener('click', ()=> showToolScreen(examDetail));
+    backFromClassMode.addEventListener('click', ()=> showToolScreen(modeChoiceScreen));
     openClassWords.addEventListener('click', ()=>{ showToolScreen(classWordsLearnScreen); loadWords(); window.scrollTo({top:0, behavior:'smooth'}); });
     openClassCards.addEventListener('click', ()=>{ showToolScreen(classCardsSharedScreen); loadSharedClassLearning(); window.scrollTo({top:0, behavior:'smooth'}); });
     openClassGames.addEventListener('click', ()=>{ alert('🎮 Spiele kommen noch. Erst bauen wir die Grundfunktionen sauber fertig.'); });
