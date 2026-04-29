@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Klassen-Lerntool 2.0 – v62 Klausurgebundener Klassenpool</title>
+  <title>Klassen-Lerntool 2.0 – v63 ECHT FINAL Klassenpool</title>
   <style>
     :root{
       --bg1:#f6efe4;
@@ -4096,7 +4096,7 @@ body.admin-active .admin-only-hint{display:block}
           <div class="admin-badge">🔐 Adminmodus aktiv</div>
           <h3>Adminbereich</h3>
           <p>Hier kannst du viele Karteikarten, Quizfragen und Richtig/Falsch-Aussagen auf einmal importieren oder als Backup exportieren.</p>
-<div id="firebaseStatusBox" class="firebase-status-box"><strong>☁️ Firebase:</strong> Firebase eingebaut: private Daten pro Benutzer, Klassenmodus gemeinsam. <br><span id="firebaseModePill" class="firebase-pill">Firebase verbunden</span><br><span class="firebase-live-badge">✅ v62 Klassenpool pro Klausur aktiv</span></div>
+<div id="firebaseStatusBox" class="firebase-status-box"><strong>☁️ Firebase:</strong> Firebase eingebaut: private Daten pro Benutzer, Klassenmodus gemeinsam. <br><span id="firebaseModePill" class="firebase-pill">Firebase verbunden</span><br><span class="firebase-live-badge">✅ v63 ECHT FINAL: Klassenpool pro Klausur aktiv</span></div>
 
           <div class="admin-tool-grid">
             <div class="admin-tool-card">
@@ -7492,7 +7492,6 @@ body.admin-active .admin-only-hint{display:block}
       if(wordDeck && wordDeck.length && wordDeck[wordIndex]){
         const word = wordDeck[wordIndex];
         if(wordVoteOverlay) wordVoteOverlay.innerHTML = makeVoteBoxHtml('word', word.id);
-      renderCurrentVoteOverlays();
       } else {
         if(wordVoteOverlay) wordVoteOverlay.innerHTML = '';
       }
@@ -7530,11 +7529,13 @@ body.admin-active .admin-only-hint{display:block}
         return card;
       });
 
+      const activeExamId = getCurrentExamId();
       saveCards(cards);
+      removeLocalClassPoolCard(cardId, activeExamId);
       if(typeof window.firebaseDeleteSharedCardNow === 'function'){
-        window.firebaseDeleteSharedCardNow(cardId);
+        window.firebaseDeleteSharedCardNow(cardId, activeExamId);
       } else if(typeof window.firebaseUnshareCardNow === 'function'){
-        window.firebaseUnshareCardNow(cardId);
+        window.firebaseUnshareCardNow(cardId, activeExamId);
       }
       clearVotesForItem('card', cardId);
 
@@ -7606,15 +7607,17 @@ body.admin-active .admin-only-hint{display:block}
         }
         return card;
       });
+      const activeExamId = getCurrentExamId();
       saveCards(cards);
+      removeLocalClassPoolCard(id, activeExamId);
 
       const learnedIds = getClassLearnedSharedIds().filter(itemId => String(itemId) !== String(id));
       saveClassLearnedSharedIds(learnedIds);
 
       if(typeof window.firebaseDeleteSharedCardNow === 'function'){
-        window.firebaseDeleteSharedCardNow(id);
+        window.firebaseDeleteSharedCardNow(id, activeExamId);
       } else if(typeof window.firebaseUnshareCardNow === 'function'){
-        window.firebaseUnshareCardNow(id);
+        window.firebaseUnshareCardNow(id, activeExamId);
       }
 
       if(classCardsSharedScreen && classCardsSharedScreen.classList.contains('active')) loadSharedClassLearning();
@@ -7631,6 +7634,50 @@ body.admin-active .admin-only-hint{display:block}
         .toLowerCase()
         .replace(/[^a-z0-9äöüß_-]+/gi,'_')
         .slice(0,60) || 'gast';
+    }
+
+    function getExamPoolKeyForLocal(examId){
+      const raw = String(examId || getCurrentExamId() || 'skl_0705').trim();
+      const pool = raw === 'skl_0705' ? 'SKL_07_05' : raw.replace(/[^a-zA-Z0-9_-]+/g,'_').toUpperCase();
+      return 'lerntool_class_pool_' + pool + '_cards';
+    }
+
+    function getLocalClassPoolCards(examId){
+      try{
+        return JSON.parse(localStorage.getItem(getExamPoolKeyForLocal(examId)) || '[]');
+      }catch(error){
+        return [];
+      }
+    }
+
+    function saveLocalClassPoolCards(examId, cards){
+      localStorage.setItem(getExamPoolKeyForLocal(examId), JSON.stringify(cards || []));
+    }
+
+    function upsertLocalClassPoolCard(card){
+      if(!card) return;
+      const examId = card.examId || getCurrentExamId();
+      const pool = getLocalClassPoolCards(examId);
+      const index = pool.findIndex(item => String(item.id) === String(card.id));
+      const cleanCard = {
+        ...card,
+        id: card.id || ('shared_card_' + Date.now()),
+        type: 'flashcard',
+        examId,
+        examTitle: card.examTitle || getExamLabelById(examId),
+        sharedWithClass: true,
+        hidden: false,
+        removedFromClass: false
+      };
+      if(index >= 0) pool[index] = cleanCard;
+      else pool.push(cleanCard);
+      saveLocalClassPoolCards(examId, pool);
+    }
+
+    function removeLocalClassPoolCard(id, examId){
+      const activeExam = examId || getCurrentExamId();
+      const pool = getLocalClassPoolCards(activeExam).filter(card => String(card.id) !== String(id));
+      saveLocalClassPoolCards(activeExam, pool);
     }
 
     function shareCardWithClass(id){
@@ -7654,6 +7701,7 @@ body.admin-active .admin-only-hint{display:block}
         return card;
       });
       saveCards(cards);
+      if(sharedCard) upsertLocalClassPoolCard(sharedCard);
       if(sharedCard && typeof window.firebaseShareCardNow === 'function'){
         window.firebaseShareCardNow(sharedCard);
       }
@@ -7668,9 +7716,11 @@ body.admin-active .admin-only-hint{display:block}
         }
         return card;
       });
+      const activeExamId = getCurrentExamId();
       saveCards(cards);
+      removeLocalClassPoolCard(id, activeExamId);
       if(typeof window.firebaseUnshareCardNow === 'function'){
-        window.firebaseUnshareCardNow(id);
+        window.firebaseUnshareCardNow(id, activeExamId);
       }
 
       const learnedIds = getClassLearnedSharedIds().filter(itemId => String(itemId) !== String(id));
@@ -7682,7 +7732,11 @@ body.admin-active .admin-only-hint{display:block}
 
     function getSharedClassCards(){
       const examId = getCurrentExamId();
-      return getCards().filter(card => {
+      const byId = new Map();
+      [...getLocalClassPoolCards(examId), ...getCards()].forEach(card => {
+        if(card && card.id) byId.set(String(card.id), card);
+      });
+      return [...byId.values()].filter(card => {
         if(!card || card.type !== 'flashcard' || !card.sharedWithClass) return false;
         if(card.removedFromClass || card.hidden) return false;
         if(card.examId && card.examId !== examId) return false;
@@ -8190,7 +8244,7 @@ body.admin-active .admin-only-hint{display:block}
 
 
 <script type="module">
-  /* V62 FIREBASE KLAUSURGEBUNDENER KLASSENPOOL
+  /* V63 FIREBASE KLAUSURGEBUNDENER KLASSENPOOL – ECHT FINAL
      - Private Inhalte pro Benutzer: werden weiterhin als eigene Profil-Liste gespeichert.
      - Klassenkarten landen jetzt in einem gemeinsamen Pool pro Klausur.
      - Beispiel: lerntoolClasses/ergotherapie_klasse/classPools/SKL_07_05/cards/{cardId}
