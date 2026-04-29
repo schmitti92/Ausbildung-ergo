@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Klassen-Lerntool 2.0 – v63 ECHT FINAL Klassenpool</title>
+  <title>Klassen-Lerntool 2.0 – v64 Benutzerabhängig gelernt</title>
   <style>
     :root{
       --bg1:#f6efe4;
@@ -7572,20 +7572,45 @@ body.admin-active .admin-only-hint{display:block}
     }
 
 
+    function getClassLearnedUserId(){
+      return String(getCurrentUserIdForShare())
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9äöüß_-]+/gi,'_')
+        .slice(0,60) || 'gast';
+    }
+
     function getClassLearnedStorageKey(){
+      const examId = getCurrentExamId() || 'skl_0705';
+      const userId = getClassLearnedUserId();
+      return 'lerntool_class_shared_learned_' + examId + '_user_' + userId;
+    }
+
+    function getLegacyClassLearnedStorageKey(){
       return 'lerntool_class_shared_learned_' + (getCurrentExamId() || 'skl_0705');
     }
 
     function getClassLearnedSharedIds(){
       try{
-        return JSON.parse(localStorage.getItem(getClassLearnedStorageKey()) || '[]');
+        const userKey = getClassLearnedStorageKey();
+        const existing = localStorage.getItem(userKey);
+        if(existing !== null) return JSON.parse(existing || '[]');
+
+        // Einmalige Schon-Migration: alte gelernte Karten werden nur dem aktuell eingeloggten Nutzer zugeordnet.
+        // Danach arbeitet jeder Benutzer mit seinem eigenen Lernstand.
+        const legacy = localStorage.getItem(getLegacyClassLearnedStorageKey());
+        if(legacy !== null){
+          localStorage.setItem(userKey, legacy);
+          return JSON.parse(legacy || '[]');
+        }
+        return [];
       }catch(error){
         return [];
       }
     }
 
     function saveClassLearnedSharedIds(ids){
-      localStorage.setItem(getClassLearnedStorageKey(), JSON.stringify(ids));
+      localStorage.setItem(getClassLearnedStorageKey(), JSON.stringify(ids || []));
     }
 
     let classSharedDeck = [];
