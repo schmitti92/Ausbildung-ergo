@@ -4348,6 +4348,44 @@ body.admin-active .admin-only-hint{display:block}
       #classCardsSharedScreen .class-learn-actions-v21{grid-template-columns:1fr !important;}
     }
 
+    /* V71: Splitkarte bleibt optisch eine Karte, Klick dreht Inhalt, Swipe bleibt aktiv */
+    #classSharedLearnCard .class-split-card-inner{
+      height:clamp(330px, 48vh, 430px) !important;
+      min-height:330px !important;
+      grid-template-rows:1fr auto 1fr !important;
+    }
+    #classSharedLearnCard.flipped .class-split-front{
+      background:radial-gradient(circle at 90% 12%, rgba(255,255,255,.76), transparent 30%), linear-gradient(145deg,#ffffff,#f3f8fb) !important;
+    }
+    #classSharedLearnCard.flipped .class-split-back{
+      background:radial-gradient(circle at 90% 12%, rgba(255,255,255,.70), transparent 30%), linear-gradient(145deg,#eef9ff,#d8edf6) !important;
+    }
+    #classSharedLearnCard.flipped .class-split-divider{
+      font-size:0 !important;
+    }
+    #classSharedLearnCard.flipped .class-split-divider::before{
+      content:'Frage';
+      font-size:.78rem !important;
+      font-weight:1000;
+      letter-spacing:.12em;
+      text-transform:uppercase;
+    }
+    #classCardsSharedScreen .class-learn-actions-v21 .flip-action{
+      display:flex !important;
+      align-items:center !important;
+      justify-content:center !important;
+      grid-column:1 / -1 !important;
+    }
+    #classCardsSharedScreen .class-tap-note{
+      font-size:.88rem !important;
+    }
+    @media(max-width:720px){
+      #classSharedLearnCard .class-split-card-inner{
+        height:clamp(320px, 48vh, 380px) !important;
+        min-height:320px !important;
+      }
+    }
+
   </style>
 </head>
 <body>
@@ -5226,7 +5264,7 @@ body.admin-active .admin-only-hint{display:block}
               <div class="class-split-divider">Antwort</div>
               <div class="class-split-section class-split-back">
                 <div id="classSharedVoteOverlayBack" class="card-vote-overlay"></div>
-                <small>Rückseite</small>
+                <small id="classSharedBackSide">Rückseite</small>
                 <p id="classSharedAnswer"></p>
               </div>
             </div>
@@ -5596,6 +5634,7 @@ body.admin-active .admin-only-hint{display:block}
     const classSharedCounter = document.getElementById('classSharedCounter');
     const classSharedLearnCard = document.getElementById('classSharedLearnCard');
     const classSharedSide = document.getElementById('classSharedSide');
+    const classSharedBackSide = document.getElementById('classSharedBackSide');
     const classSharedQuestion = document.getElementById('classSharedQuestion');
     const classSharedAnswer = document.getElementById('classSharedAnswer');
     const classSharedFlipBtn = document.getElementById('classSharedFlipBtn');
@@ -8120,6 +8159,7 @@ body.admin-active .admin-only-hint{display:block}
         classSharedSide.textContent = 'Keine offene Karte';
         classSharedQuestion.textContent = shared.length ? 'Alle Klassenkarten gelernt' : 'Noch keine Klassenkarten geteilt';
         classSharedAnswer.textContent = shared.length ? 'Du kannst gelernte Karten jederzeit wieder beimischen.' : 'Teile zuerst eigene Karteikarten mit der Klasse.';
+        if(classSharedBackSide) classSharedBackSide.textContent = 'Rückseite';
         classSharedFlipBtn.disabled = true;
         classSharedAgainBtn.disabled = true;
         classSharedKnownBtn.disabled = true;
@@ -8132,9 +8172,19 @@ body.admin-active .admin-only-hint{display:block}
       }
 
       const card = classSharedDeck[classSharedIndex];
-      classSharedSide.textContent = 'Vorderseite';
-      classSharedQuestion.textContent = card.question || 'Ohne Frage';
-      classSharedAnswer.textContent = card.answer || '';
+      const frontText = card.question || 'Ohne Frage';
+      const backText = card.answer || '';
+      if(classSharedFlipped){
+        classSharedSide.textContent = 'Rückseite';
+        if(classSharedBackSide) classSharedBackSide.textContent = 'Vorderseite';
+        classSharedQuestion.textContent = backText || 'Ohne Antwort';
+        classSharedAnswer.textContent = frontText;
+      } else {
+        classSharedSide.textContent = 'Vorderseite';
+        if(classSharedBackSide) classSharedBackSide.textContent = 'Rückseite';
+        classSharedQuestion.textContent = frontText;
+        classSharedAnswer.textContent = backText;
+      }
       classSharedLearnCard.classList.toggle('flipped', classSharedFlipped);
       if(classSharedVoteBox) classSharedVoteBox.innerHTML = '';
       if(classSharedVoteOverlayFront) classSharedVoteOverlayFront.innerHTML = makeVoteBoxHtml('card', card.id);
