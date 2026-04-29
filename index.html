@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Klassen-Lerntool 2.0 – v59 Firebase Sync Fix</title>
+  <title>Klassen-Lerntool 2.0 – v60 Klassen-Sync Fix</title>
   <style>
     :root{
       --bg1:#f6efe4;
@@ -4028,6 +4028,21 @@ body.admin-active .admin-only-hint{display:block}
   font-weight:950;
 }
 
+
+/* V60: Klassenkarten nicht-destruktiv synchronisieren */
+.firebase-class-sync-badge{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  margin-top:8px;
+  padding:7px 10px;
+  border-radius:999px;
+  background:#edf8f2;
+  color:#2f714d;
+  border:1px solid rgba(55,130,82,.14);
+  font-weight:950;
+}
+
 </style>
 </head>
 <body>
@@ -4066,7 +4081,7 @@ body.admin-active .admin-only-hint{display:block}
           <div class="admin-badge">🔐 Adminmodus aktiv</div>
           <h3>Adminbereich</h3>
           <p>Hier kannst du viele Karteikarten, Quizfragen und Richtig/Falsch-Aussagen auf einmal importieren oder als Backup exportieren.</p>
-<div id="firebaseStatusBox" class="firebase-status-box"><strong>☁️ Firebase:</strong> Firebase eingebaut: private Daten pro Benutzer, Klassenmodus gemeinsam. <br><span id="firebaseModePill" class="firebase-pill">Firebase verbunden</span><br><span class="firebase-live-badge">✅ v59 Sync Fix aktiv</span></div>
+<div id="firebaseStatusBox" class="firebase-status-box"><strong>☁️ Firebase:</strong> Firebase eingebaut: private Daten pro Benutzer, Klassenmodus gemeinsam. <br><span id="firebaseModePill" class="firebase-pill">Firebase verbunden</span><br><span class="firebase-live-badge">✅ v60 Klassen-Sync aktiv</span></div>
 
           <div class="admin-tool-grid">
             <div class="admin-tool-card">
@@ -7550,14 +7565,38 @@ body.admin-active .admin-only-hint{display:block}
     let classSharedIndex = 0;
     let classSharedFlipped = false;
 
+
+    function getCurrentUsernameForShare(){
+      return localStorage.getItem('lerntool_username') || localStorage.getItem('lerntool_user') || localStorage.getItem('username') || window.currentUser || 'gast';
+    }
+
+    function getCurrentUserIdForShare(){
+      return String(getCurrentUsernameForShare())
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9äöüß_-]+/gi,'_')
+        .slice(0,60) || 'gast';
+    }
+
     function shareCardWithClass(id){
+      let sharedCard = null;
       const cards = getCards().map(card=>{
         if(String(card.id) === String(id)){
-          return {...card, sharedWithClass:true, sharedAt:new Date().toISOString()};
+          sharedCard = {
+            ...card,
+            sharedWithClass:true,
+            sharedAt:new Date().toISOString(),
+            sharedBy: card.sharedBy || getCurrentUsernameForShare(),
+            sharedOwnerId: card.sharedOwnerId || getCurrentUserIdForShare()
+          };
+          return sharedCard;
         }
         return card;
       });
       saveCards(cards);
+      if(sharedCard && typeof window.firebaseShareCardNow === 'function'){
+        window.firebaseShareCardNow(sharedCard);
+      }
       if(manageScreen.classList.contains('active')) renderManageCards();
       if(classCardsSharedScreen.classList.contains('active')) loadSharedClassLearning();
     }
@@ -7570,6 +7609,9 @@ body.admin-active .admin-only-hint{display:block}
         return card;
       });
       saveCards(cards);
+      if(typeof window.firebaseUnshareCardNow === 'function'){
+        window.firebaseUnshareCardNow(id);
+      }
 
       const learnedIds = getClassLearnedSharedIds().filter(itemId => String(itemId) !== String(id));
       saveClassLearnedSharedIds(learnedIds);
@@ -8079,13 +8121,14 @@ body.admin-active .admin-only-hint{display:block}
 
 
 
+
 <script type="module">
-  /* V59 FIREBASE SYNC FIX
-     - Alles online.
-     - Private Inhalte pro Benutzer.
-     - Klassenmodus gemeinsam.
-     - Fix: Benutzername wird sauber aus lerntool_username gelesen.
-     - Fix: private Karten + Klassenkarten werden beide synchronisiert.
+  /* V60 FIREBASE KLASSEN-SYNC FIX
+     - Private Inhalte pro Benutzer: werden weiterhin als eigene Profil-Liste gespeichert.
+     - Klassenkarten: werden NICHT mehr als Gesamt-Liste ersetzt.
+       Dadurch bleiben Karten von Klassenkameraden erhalten.
+     - Beim Teilen wird eine einzelne Karte in sharedCards geschrieben.
+     - Beim Zurücknehmen wird nur diese einzelne Karte entfernt.
   */
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
   import { getFirestore, collection, doc, setDoc, deleteDoc, getDocs, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
@@ -8141,7 +8184,6 @@ body.admin-active .admin-only-hint{display:block}
 
     const classCol = name => collection(db, "lerntoolClasses", CLASS_ID, name);
     const userColFor = (uid, name) => collection(db, "lerntoolUsers", uid, name);
-    const userCol = name => userColFor(currentUserId(), name);
 
     let fromFirebase = false;
     let lastUser = currentUserId();
@@ -8149,7 +8191,7 @@ body.admin-active .admin-only-hint{display:block}
     let privateCardsCache = null;
     let sharedCardsCache = null;
 
-    status("Online aktiv: Private Daten werden pro Benutzer gespeichert, Klassenmodus ist für alle gemeinsam.", "online");
+    status("Online aktiv: Klassenkarten werden gemeinsam angezeigt. Private Karten bleiben im eigenen Profil.", "online");
 
     function safeId(prefix, item){
       return String(item && item.id ? item.id : prefix + "_" + Date.now() + "_" + Math.random().toString(16).slice(2));
@@ -8165,7 +8207,7 @@ body.admin-active .admin-only-hint{display:block}
       });
     }
 
-    async function syncArray(ref, items, prefix){
+    async function replaceArray(ref, items, prefix){
       if(fromFirebase) return;
       try{
         const snap = await getDocs(ref);
@@ -8187,6 +8229,26 @@ body.admin-active .admin-only-hint{display:block}
       }catch(e){
         console.error(e);
         status("Speicherfehler: " + e.message, "error");
+      }
+    }
+
+    async function upsertSharedCards(items){
+      if(fromFirebase) return;
+      try{
+        for(const item of (items || [])){
+          const id = safeId("shared_card", item);
+          await setDoc(doc(classCol("sharedCards"), id), {
+            ...item,
+            id,
+            sharedWithClass: true,
+            sharedBy: item.sharedBy || currentUserName(),
+            sharedOwnerId: item.sharedOwnerId || currentUserId(),
+            updatedAt: serverTimestamp()
+          }, {merge:true});
+        }
+      }catch(e){
+        console.error(e);
+        status("Speicherfehler Klassenkarte: " + e.message, "error");
       }
     }
 
@@ -8260,6 +8322,17 @@ body.admin-active .admin-only-hint{display:block}
       localStorage.setItem("lerntool_class_words_skl_0705", JSON.stringify(words || []));
     }
 
+    window.firebaseShareCardNow = function(card){
+      return upsertSharedCards([card]);
+    };
+
+    window.firebaseUnshareCardNow = function(id){
+      return deleteDoc(doc(classCol("sharedCards"), String(id))).catch(e=>{
+        console.error(e);
+        status("Fehler beim Zurücknehmen der Klassenkarte: " + e.message, "error");
+      });
+    };
+
     window.saveCards = function(cards){
       const all = cards || [];
 
@@ -8271,8 +8344,8 @@ body.admin-active .admin-only-hint{display:block}
       const sharedCards = getSharedCardsOnly(all);
 
       Promise.all([
-        syncArray(userColFor(uid, "cards"), privateCards, "private_card"),
-        syncArray(classCol("sharedCards"), sharedCards, "shared_card")
+        replaceArray(userColFor(uid, "cards"), privateCards, "private_card"),
+        upsertSharedCards(sharedCards)
       ]);
     };
 
@@ -8281,7 +8354,7 @@ body.admin-active .admin-only-hint{display:block}
       if(typeof originalSaveWords === "function") originalSaveWords(all);
       else writeLocalWords(all);
 
-      syncArray(classCol("words"), all, "word");
+      replaceArray(classCol("words"), all, "word");
     };
 
     window.saveClassVotes = function(votes){
@@ -8291,7 +8364,7 @@ body.admin-active .admin-only-hint{display:block}
 
     window.saveClassChatMessages = function(messages){
       localStorage.setItem("lerntool_class_chat_skl_0705", JSON.stringify(messages || []));
-      syncArray(classCol("chat"), messages || [], "msg");
+      replaceArray(classCol("chat"), messages || [], "msg");
     };
 
     function applyCardCaches(){
@@ -8321,7 +8394,7 @@ body.admin-active .admin-only-hint{display:block}
 
     onSnapshot(classCol("sharedCards"), snap=>{
       fromFirebase = true;
-      sharedCardsCache = snap.docs.map(d=>({id:d.id,...d.data()}));
+      sharedCardsCache = snap.docs.map(d=>({id:d.id,...d.data()})).filter(card => card && card.sharedWithClass !== false && !card.removedFromClass);
       fromFirebase = false;
       applyCardCaches();
     }, e=>status("Lesefehler Klassenkarten: " + e.message, "error"));
@@ -8368,17 +8441,17 @@ body.admin-active .admin-only-hint{display:block}
 
         const userCardsSnap = await getDocs(userColFor(uid, "cards"));
         if(userCardsSnap.empty){
-          await syncArray(userColFor(uid, "cards"), getPrivateCardsOnly(localCards), "private_card");
+          await replaceArray(userColFor(uid, "cards"), getPrivateCardsOnly(localCards), "private_card");
         }
 
         const sharedSnap = await getDocs(classCol("sharedCards"));
         if(sharedSnap.empty){
-          await syncArray(classCol("sharedCards"), getSharedCardsOnly(localCards), "shared_card");
+          await upsertSharedCards(getSharedCardsOnly(localCards));
         }
 
         const wordsSnap = await getDocs(classCol("words"));
         if(wordsSnap.empty){
-          await syncArray(classCol("words"), readLocalWords(), "word");
+          await replaceArray(classCol("words"), readLocalWords(), "word");
         }
       }catch(e){
         console.error(e);
@@ -8386,6 +8459,7 @@ body.admin-active .admin-only-hint{display:block}
     }, 1400);
   }
 </script>
+
 
 
 
