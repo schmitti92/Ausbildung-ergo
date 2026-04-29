@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Klassen-Lerntool 2.0 – v65 Klassenpool Direkt-Save Fix</title>
+  <title>Klassen-Lerntool 2.0 – v66 Zwei Speicherbuttons Final</title>
   <style>
     :root{
       --bg1:#f6efe4;
@@ -4320,8 +4320,8 @@ body.admin-active .admin-only-hint{display:block}
             </div>
 
             <div class="form-actions">
-              <button id="shareCreateFlashBtn" class="small-btn share-create-btn" type="button">👥 Mit Klasse teilen</button>
-              <button class="primary-btn" type="submit">💾 Karteikarte speichern</button>
+              <button id="savePrivateFlashBtn" class="secondary-btn" type="submit">💾 Für mich speichern</button>
+              <button id="shareCreateFlashBtn" class="primary-btn share-create-btn" type="submit">👥 Speichern und an Klasse teilen</button>
               <button id="clearFlashForm" class="secondary-btn" type="button">Formular leeren</button>
             </div>
           </form>
@@ -6260,18 +6260,16 @@ body.admin-active .admin-only-hint{display:block}
     clearFlashForm.addEventListener('click', ()=>{
       flashcardForm.reset();
       shareCreateFlashActive = false;
-      if(shareCreateFlashBtn){
-        shareCreateFlashBtn.classList.remove('active');
-        shareCreateFlashBtn.textContent = '👥 Mit Klasse teilen';
-      }
       flashQuestion.focus();
     });
 
-    shareCreateFlashBtn.addEventListener('click', ()=>{
-      shareCreateFlashActive = !shareCreateFlashActive;
-      shareCreateFlashBtn.classList.toggle('active', shareCreateFlashActive);
-      shareCreateFlashBtn.textContent = shareCreateFlashActive ? '✔ Wird geteilt' : '👥 Mit Klasse teilen';
-    });
+    // V66: Kein Umschalt-Button mehr.
+    // Der Button "Für mich speichern" speichert privat.
+    // Der Button "Speichern und an Klasse teilen" speichert privat UND direkt in den Klassenpool.
+    if(shareCreateFlashBtn){
+      shareCreateFlashBtn.classList.remove('active');
+      shareCreateFlashBtn.textContent = '👥 Speichern und an Klasse teilen';
+    }
 
     clearQuizForm.addEventListener('click', ()=>{
       quizForm.reset();
@@ -6294,6 +6292,9 @@ body.admin-active .admin-only-hint{display:block}
         return;
       }
 
+      const shouldShareWithClass = !!(e.submitter && e.submitter.id === 'shareCreateFlashBtn');
+      shareCreateFlashActive = shouldShareWithClass;
+
       const cards = getCards();
       const newFlashcard = {
         id: Date.now(),
@@ -6307,10 +6308,10 @@ body.admin-active .admin-only-hint{display:block}
         source: flashSource.value.trim(),
         examId: getCurrentExamId(),
         examTitle: getExamLabelById(getCurrentExamId()),
-        sharedWithClass: shareCreateFlashActive,
-        sharedAt: shareCreateFlashActive ? new Date().toISOString() : null,
-        sharedBy: shareCreateFlashActive ? getCurrentUsernameForShare() : null,
-        sharedOwnerId: shareCreateFlashActive ? getCurrentUserIdForShare() : null,
+        sharedWithClass: shouldShareWithClass,
+        sharedAt: shouldShareWithClass ? new Date().toISOString() : null,
+        sharedBy: shouldShareWithClass ? getCurrentUsernameForShare() : null,
+        sharedOwnerId: shouldShareWithClass ? getCurrentUserIdForShare() : null,
         hidden: false,
         removedFromClass: false,
         createdAt: new Date().toISOString()
@@ -6332,7 +6333,7 @@ body.admin-active .admin-only-hint{display:block}
       shareCreateFlashActive = false;
       if(shareCreateFlashBtn){
         shareCreateFlashBtn.classList.remove('active');
-        shareCreateFlashBtn.textContent = '👥 Mit Klasse teilen';
+        shareCreateFlashBtn.textContent = '👥 Speichern und an Klasse teilen';
       }
       renderCards();
       updateProbeExamLock();
