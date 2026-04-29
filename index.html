@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Klassen-Lerntool 2.0 – v66 Zwei Speicherbuttons Final</title>
+  <title>Klassen-Lerntool 2.0 – v67 Live Klassenmodus</title>
   <style>
     :root{
       --bg1:#f6efe4;
@@ -4096,7 +4096,7 @@ body.admin-active .admin-only-hint{display:block}
           <div class="admin-badge">🔐 Adminmodus aktiv</div>
           <h3>Adminbereich</h3>
           <p>Hier kannst du viele Karteikarten, Quizfragen und Richtig/Falsch-Aussagen auf einmal importieren oder als Backup exportieren.</p>
-<div id="firebaseStatusBox" class="firebase-status-box"><strong>☁️ Firebase:</strong> Firebase eingebaut: private Daten pro Benutzer, Klassenmodus gemeinsam. <br><span id="firebaseModePill" class="firebase-pill">Firebase verbunden</span><br><span class="firebase-live-badge">✅ v63 ECHT FINAL: Klassenpool pro Klausur aktiv</span></div>
+<div id="firebaseStatusBox" class="firebase-status-box"><strong>☁️ Firebase:</strong> Firebase eingebaut: private Daten pro Benutzer, Klassenmodus gemeinsam. <br><span id="firebaseModePill" class="firebase-pill">Firebase verbunden</span><br><span class="firebase-live-badge">✅ v67 LIVE: Klassenpool lädt in Echtzeit</span></div>
 
           <div class="admin-tool-grid">
             <div class="admin-tool-card">
@@ -8379,7 +8379,7 @@ body.admin-active .admin-only-hint{display:block}
     let legacySharedCardsCache = null;
     let lastExamPool = examPoolId(getActiveExamId());
 
-    status("Online aktiv: Klassenkarten werden im gemeinsamen Klausur-Pool gespeichert. Private Karten bleiben im eigenen Profil.", "online");
+    status("Online aktiv: Klassenkarten werden im gemeinsamen Klausur-Pool gespeichert und im Klassenmodus live geladen. Private Karten bleiben im eigenen Profil.", "online");
 
     function safeId(prefix, item){
       return String(item && item.id ? item.id : prefix + "_" + Date.now() + "_" + Math.random().toString(16).slice(2));
@@ -8609,6 +8609,7 @@ body.admin-active .admin-only-hint{display:block}
       applyCardCaches();
     }, e=>status("Lesefehler alte Klassenkarten: " + e.message, "error"));
 
+    // V67 LIVE: Der Klassenpool wird per onSnapshot beobachtet. Neue geteilte Karten erscheinen ohne Neuladen.
     function listenForClassPoolCards(){
       const examId = getActiveExamId();
       lastExamPool = examPoolId(examId);
