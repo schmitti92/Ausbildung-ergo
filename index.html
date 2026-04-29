@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Klassen-Lerntool 2.0 – v64 Benutzerabhängig gelernt</title>
+  <title>Klassen-Lerntool 2.0 – v65 Klassenpool Direkt-Save Fix</title>
   <style>
     :root{
       --bg1:#f6efe4;
@@ -5909,6 +5909,18 @@ body.admin-active .admin-only-hint{display:block}
 
         if(!normalized.length) throw new Error('Keine gültigen Einträge gefunden.');
         saveCards([...normalized, ...getCards()]);
+
+        // V65: Wenn Admin-Karteikarten direkt geteilt importiert werden,
+        // zusätzlich sofort in den klausurgebundenen Klassenpool schreiben.
+        if(shareDirect){
+          normalized.filter(card => card && card.type === 'flashcard' && card.sharedWithClass).forEach(card => {
+            upsertLocalClassPoolCard(card);
+            if(typeof window.firebaseShareCardNow === 'function'){
+              window.firebaseShareCardNow(card);
+            }
+          });
+        }
+
         cleanupDuplicateExampleCards();
         renderCards();
         renderManageCards();
@@ -6283,7 +6295,7 @@ body.admin-active .admin-only-hint{display:block}
       }
 
       const cards = getCards();
-      cards.unshift({
+      const newFlashcard = {
         id: Date.now(),
         type: 'flashcard',
         typeLabel: 'Karteikarte',
@@ -6297,10 +6309,25 @@ body.admin-active .admin-only-hint{display:block}
         examTitle: getExamLabelById(getCurrentExamId()),
         sharedWithClass: shareCreateFlashActive,
         sharedAt: shareCreateFlashActive ? new Date().toISOString() : null,
+        sharedBy: shareCreateFlashActive ? getCurrentUsernameForShare() : null,
+        sharedOwnerId: shareCreateFlashActive ? getCurrentUserIdForShare() : null,
+        hidden: false,
+        removedFromClass: false,
         createdAt: new Date().toISOString()
-      });
+      };
+      cards.unshift(newFlashcard);
 
       saveCards(cards);
+
+      // V65: Sicherheits-Direktspeicherung in den gemeinsamen Klassenpool.
+      // Wichtig, weil der Button „Wird geteilt“ sonst nur lokal/privat wirken kann,
+      // wenn die normale saveCards-Synchronisation vom Browser verzögert wird.
+      if(newFlashcard.sharedWithClass){
+        upsertLocalClassPoolCard(newFlashcard);
+        if(typeof window.firebaseShareCardNow === 'function'){
+          window.firebaseShareCardNow(newFlashcard);
+        }
+      }
       flashcardForm.reset();
       shareCreateFlashActive = false;
       if(shareCreateFlashBtn){
