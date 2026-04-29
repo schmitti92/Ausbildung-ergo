@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Klassen-Lerntool 2.0 – v60 Klassen-Sync Fix</title>
+  <title>Klassen-Lerntool 2.0 – v61 Downvote Global Delete Fix</title>
   <style>
     :root{
       --bg1:#f6efe4;
@@ -4043,6 +4043,21 @@ body.admin-active .admin-only-hint{display:block}
   font-weight:950;
 }
 
+
+/* V61: Downvote löscht Klassenkarte global aus Firebase */
+.downvote-global-delete-badge{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  margin-top:8px;
+  padding:7px 10px;
+  border-radius:999px;
+  background:#edf8f2;
+  color:#2f714d;
+  border:1px solid rgba(55,130,82,.14);
+  font-weight:950;
+}
+
 </style>
 </head>
 <body>
@@ -4081,7 +4096,7 @@ body.admin-active .admin-only-hint{display:block}
           <div class="admin-badge">🔐 Adminmodus aktiv</div>
           <h3>Adminbereich</h3>
           <p>Hier kannst du viele Karteikarten, Quizfragen und Richtig/Falsch-Aussagen auf einmal importieren oder als Backup exportieren.</p>
-<div id="firebaseStatusBox" class="firebase-status-box"><strong>☁️ Firebase:</strong> Firebase eingebaut: private Daten pro Benutzer, Klassenmodus gemeinsam. <br><span id="firebaseModePill" class="firebase-pill">Firebase verbunden</span><br><span class="firebase-live-badge">✅ v60 Klassen-Sync aktiv</span></div>
+<div id="firebaseStatusBox" class="firebase-status-box"><strong>☁️ Firebase:</strong> Firebase eingebaut: private Daten pro Benutzer, Klassenmodus gemeinsam. <br><span id="firebaseModePill" class="firebase-pill">Firebase verbunden</span><br><span class="firebase-live-badge">✅ v61 Global Delete aktiv</span></div>
 
           <div class="admin-tool-grid">
             <div class="admin-tool-card">
@@ -7565,6 +7580,35 @@ body.admin-active .admin-only-hint{display:block}
     let classSharedIndex = 0;
     let classSharedFlipped = false;
 
+
+
+    function globallyRemoveSharedCard(id){
+      const cards = getCards().map(card=>{
+        if(String(card.id) === String(id)){
+          return {
+            ...card,
+            sharedWithClass:false,
+            removedFromClass:true,
+            removedAt:new Date().toISOString(),
+            removedReason:'3_downvotes'
+          };
+        }
+        return card;
+      });
+      saveCards(cards);
+
+      const learnedIds = getClassLearnedSharedIds().filter(itemId => String(itemId) !== String(id));
+      saveClassLearnedSharedIds(learnedIds);
+
+      if(typeof window.firebaseDeleteSharedCardNow === 'function'){
+        window.firebaseDeleteSharedCardNow(id);
+      } else if(typeof window.firebaseUnshareCardNow === 'function'){
+        window.firebaseUnshareCardNow(id);
+      }
+
+      if(classCardsSharedScreen && classCardsSharedScreen.classList.contains('active')) loadSharedClassLearning();
+      if(manageScreen && manageScreen.classList.contains('active')) renderManageCards();
+    }
 
     function getCurrentUsernameForShare(){
       return localStorage.getItem('lerntool_username') || localStorage.getItem('lerntool_user') || localStorage.getItem('username') || window.currentUser || 'gast';
