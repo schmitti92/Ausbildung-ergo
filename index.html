@@ -4402,6 +4402,18 @@ body.admin-active .admin-only-hint{display:block}
   #examScreen.mode-choice-view .mode-choice-only{grid-template-columns:1fr !important;}
   #examScreen.mode-choice-view .big-mode-image-btn{min-height:300px !important;border-width:8px !important;border-radius:32px !important;}
 }
+
+    /* V74: Cooler Wechsel vom eigenen Bereich ins Klassentreffen */
+    .class-switch-cta{width:100%;min-height:118px;margin:8px 0 26px;padding:22px 26px;border-radius:32px;display:flex;align-items:center;justify-content:space-between;gap:20px;text-align:left;background:radial-gradient(circle at 86% 30%, rgba(255,255,255,.58), transparent 30%),linear-gradient(145deg,#eef8f2,#cceee0 48%,#e8f4fa);border:1px solid rgba(88,121,138,.14);box-shadow:0 18px 42px rgba(33,64,82,.12);color:#1f2d36;overflow:hidden;position:relative;transition:transform .2s ease, box-shadow .2s ease;}
+    .class-switch-cta::after{content:"";position:absolute;right:-54px;bottom:-70px;width:190px;height:190px;border-radius:999px;background:rgba(255,255,255,.44);pointer-events:none;}
+    .class-switch-cta:hover,.class-switch-cta:focus-visible{transform:translateY(-3px);box-shadow:0 24px 54px rgba(33,64,82,.18);outline:none;}
+    .class-switch-left{display:flex;align-items:center;gap:18px;position:relative;z-index:1;}
+    .class-switch-icon{width:72px;height:72px;border-radius:24px;display:grid;place-items:center;font-size:38px;background:rgba(255,255,255,.78);border:1px solid rgba(88,121,138,.11);box-shadow:0 10px 24px rgba(33,64,82,.10);}
+    .class-switch-title{display:block;font-size:clamp(1.45rem,3vw,2.05rem);line-height:1.05;font-weight:1000;letter-spacing:-.045em;color:#1f2d36;}
+    .class-switch-sub{display:block;margin-top:6px;font-size:1rem;color:#617482;font-weight:850;}
+    .class-switch-arrow{min-width:56px;height:56px;border-radius:20px;display:grid;place-items:center;font-size:28px;font-weight:1000;color:#2f714d;background:rgba(255,255,255,.82);box-shadow:0 10px 24px rgba(33,64,82,.09);position:relative;z-index:1;}
+    @media(max-width:720px){.class-switch-cta{min-height:104px;padding:18px;border-radius:26px;margin-bottom:20px}.class-switch-icon{width:60px;height:60px;border-radius:20px;font-size:32px}.class-switch-sub{display:none}.class-switch-arrow{min-width:50px;height:50px;border-radius:18px}}
+
 </style>
 </head>
 <body>
@@ -4579,6 +4591,14 @@ body.admin-active .admin-only-hint{display:block}
           <button id="backToExams" class="back-btn">← Zurück</button>
         </div>
 
+        <button id="jumpToClassMeeting" class="class-switch-cta" type="button" aria-label="Zum Klassentreffen wechseln">
+          <span class="class-switch-left">
+            <span class="class-switch-icon">👥</span>
+            <span><strong class="class-switch-title">Zum Klassentreffen</strong><span class="class-switch-sub">Klassenkarten, Fachwörter und Chat öffnen</span></span>
+          </span>
+          <span class="class-switch-arrow">→</span>
+        </button>
+
         <div class="mode-section">
           <p class="mode-label">📚 Lernen & erstellen</p>
           <div class="mode-grid">
@@ -4616,10 +4636,10 @@ body.admin-active .admin-only-hint{display:block}
           </div>
         </div>
 
-        <div class="mode-section">
+        <div class="mode-section" style="display:none !important;" aria-hidden="true">
           <p class="mode-label">🏫 Klasse</p>
           <div class="mode-grid">
-            <button id="openClassMode" class="mode-card mode-class" type="button">
+            <button id="openClassMode" class="mode-card mode-class" type="button" tabindex="-1">
               <div class="mode-icon">👥</div>
               <strong>Klassenmodus</strong>
               <span>Gemeinsam lernen, chatten und später Spiele starten.</span>
@@ -5469,6 +5489,7 @@ body.admin-active .admin-only-hint{display:block}
     const openOwnArea = document.getElementById('openOwnArea');
     const openClassMeeting = document.getElementById('openClassMeeting');
     const modeChoiceBackBtn = document.getElementById('modeChoiceBackBtn');
+    const jumpToClassMeeting = document.getElementById('jumpToClassMeeting');
     const adminOpenBtn = document.getElementById('adminOpenBtn');
     const adminPanel = document.getElementById('adminPanel');
     const adminForm = document.getElementById('adminForm');
@@ -5822,6 +5843,15 @@ body.admin-active .admin-only-hint{display:block}
       updateProbeExamLock();
       window.scrollTo({top:0, behavior:'smooth'});
     });
+
+    if(jumpToClassMeeting){
+      jumpToClassMeeting.addEventListener('click', ()=>{
+        showToolScreen(classModeScreen);
+        renderClassChat();
+        updateProbeExamLock();
+        window.scrollTo({top:0, behavior:'smooth'});
+      });
+    }
 
     adminOpenBtn.addEventListener('click', ()=>{
       adminPanel.classList.toggle('active');
@@ -9202,6 +9232,7 @@ body.admin-active .admin-only-hint{display:block}
     const modeChoice = q('modeChoiceScreen');
     const own = q('openOwnArea');
     const klass = q('openClassMeeting');
+    const jumpClass = q('jumpToClassMeeting');
     const back = q('modeChoiceBackBtn');
     const backToExams = q('backToExams');
 
@@ -9224,6 +9255,16 @@ body.admin-active .admin-only-hint{display:block}
 
     if(klass){
       klass.addEventListener('click', function(e){
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        showOnly(q('classModeScreen'));
+        if(typeof renderClassChat === 'function') renderClassChat();
+        if(typeof updateProbeExamLock === 'function') updateProbeExamLock();
+      }, true);
+    }
+
+    if(jumpClass){
+      jumpClass.addEventListener('click', function(e){
         e.preventDefault();
         e.stopImmediatePropagation();
         showOnly(q('classModeScreen'));
