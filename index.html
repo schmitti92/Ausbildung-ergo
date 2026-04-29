@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Klassen-Lerntool 2.0 – v61 Downvote Global Delete Fix</title>
+  <title>Klassen-Lerntool 2.0 – v62 Klausurgebundener Klassenpool</title>
   <style>
     :root{
       --bg1:#f6efe4;
@@ -4096,7 +4096,7 @@ body.admin-active .admin-only-hint{display:block}
           <div class="admin-badge">🔐 Adminmodus aktiv</div>
           <h3>Adminbereich</h3>
           <p>Hier kannst du viele Karteikarten, Quizfragen und Richtig/Falsch-Aussagen auf einmal importieren oder als Backup exportieren.</p>
-<div id="firebaseStatusBox" class="firebase-status-box"><strong>☁️ Firebase:</strong> Firebase eingebaut: private Daten pro Benutzer, Klassenmodus gemeinsam. <br><span id="firebaseModePill" class="firebase-pill">Firebase verbunden</span><br><span class="firebase-live-badge">✅ v61 Global Delete aktiv</span></div>
+<div id="firebaseStatusBox" class="firebase-status-box"><strong>☁️ Firebase:</strong> Firebase eingebaut: private Daten pro Benutzer, Klassenmodus gemeinsam. <br><span id="firebaseModePill" class="firebase-pill">Firebase verbunden</span><br><span class="firebase-live-badge">✅ v62 Klassenpool pro Klausur aktiv</span></div>
 
           <div class="admin-tool-grid">
             <div class="admin-tool-card">
@@ -6293,6 +6293,8 @@ body.admin-active .admin-only-hint{display:block}
         topic: flashTopic.value.trim(),
         difficulty: '',
         source: flashSource.value.trim(),
+        examId: getCurrentExamId(),
+        examTitle: getExamLabelById(getCurrentExamId()),
         sharedWithClass: shareCreateFlashActive,
         sharedAt: shareCreateFlashActive ? new Date().toISOString() : null,
         createdAt: new Date().toISOString()
@@ -7529,6 +7531,11 @@ body.admin-active .admin-only-hint{display:block}
       });
 
       saveCards(cards);
+      if(typeof window.firebaseDeleteSharedCardNow === 'function'){
+        window.firebaseDeleteSharedCardNow(cardId);
+      } else if(typeof window.firebaseUnshareCardNow === 'function'){
+        window.firebaseUnshareCardNow(cardId);
+      }
       clearVotesForItem('card', cardId);
 
       const learnedIds = getClassLearnedSharedIds().filter(itemId => String(itemId) !== String(cardId));
@@ -7564,16 +7571,20 @@ body.admin-active .admin-only-hint{display:block}
     }
 
 
+    function getClassLearnedStorageKey(){
+      return 'lerntool_class_shared_learned_' + (getCurrentExamId() || 'skl_0705');
+    }
+
     function getClassLearnedSharedIds(){
       try{
-        return JSON.parse(localStorage.getItem('lerntool_class_shared_learned_skl_0705') || '[]');
+        return JSON.parse(localStorage.getItem(getClassLearnedStorageKey()) || '[]');
       }catch(error){
         return [];
       }
     }
 
     function saveClassLearnedSharedIds(ids){
-      localStorage.setItem('lerntool_class_shared_learned_skl_0705', JSON.stringify(ids));
+      localStorage.setItem(getClassLearnedStorageKey(), JSON.stringify(ids));
     }
 
     let classSharedDeck = [];
@@ -7626,12 +7637,17 @@ body.admin-active .admin-only-hint{display:block}
       let sharedCard = null;
       const cards = getCards().map(card=>{
         if(String(card.id) === String(id)){
+          const examId = card.examId || getCurrentExamId();
           sharedCard = {
             ...card,
+            examId,
+            examTitle: card.examTitle || getExamLabelById(examId),
             sharedWithClass:true,
             sharedAt:new Date().toISOString(),
             sharedBy: card.sharedBy || getCurrentUsernameForShare(),
-            sharedOwnerId: card.sharedOwnerId || getCurrentUserIdForShare()
+            sharedOwnerId: card.sharedOwnerId || getCurrentUserIdForShare(),
+            hidden:false,
+            removedFromClass:false
           };
           return sharedCard;
         }
@@ -7665,7 +7681,14 @@ body.admin-active .admin-only-hint{display:block}
     }
 
     function getSharedClassCards(){
-      return getCards().filter(card => card.type === 'flashcard' && card.sharedWithClass);
+      const examId = getCurrentExamId();
+      return getCards().filter(card => {
+        if(!card || card.type !== 'flashcard' || !card.sharedWithClass) return false;
+        if(card.removedFromClass || card.hidden) return false;
+        if(card.examId && card.examId !== examId) return false;
+        const counts = getVoteCounts('card', card.id);
+        return counts.down < 3;
+      });
     }
 
     function getOpenSharedClassCards(){
@@ -8167,12 +8190,12 @@ body.admin-active .admin-only-hint{display:block}
 
 
 <script type="module">
-  /* V60 FIREBASE KLASSEN-SYNC FIX
+  /* V62 FIREBASE KLAUSURGEBUNDENER KLASSENPOOL
      - Private Inhalte pro Benutzer: werden weiterhin als eigene Profil-Liste gespeichert.
-     - Klassenkarten: werden NICHT mehr als Gesamt-Liste ersetzt.
-       Dadurch bleiben Karten von Klassenkameraden erhalten.
-     - Beim Teilen wird eine einzelne Karte in sharedCards geschrieben.
-     - Beim Zurücknehmen wird nur diese einzelne Karte entfernt.
+     - Klassenkarten landen jetzt in einem gemeinsamen Pool pro Klausur.
+     - Beispiel: lerntoolClasses/ergotherapie_klasse/classPools/SKL_07_05/cards/{cardId}
+     - Beim Teilen wird eine einzelne Karte in den passenden Klausurpool geschrieben.
+     - Beim Zurücknehmen oder 3 Downvotes wird nur diese Karte aus dem Pool entfernt.
   */
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
   import { getFirestore, collection, doc, setDoc, deleteDoc, getDocs, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
@@ -8228,14 +8251,28 @@ body.admin-active .admin-only-hint{display:block}
 
     const classCol = name => collection(db, "lerntoolClasses", CLASS_ID, name);
     const userColFor = (uid, name) => collection(db, "lerntoolUsers", uid, name);
+    function getActiveExamId(){
+      try{ return (typeof window.getCurrentExamId === "function" ? window.getCurrentExamId() : localStorage.getItem("lerntool_current_exam")) || "skl_0705"; }
+      catch(e){ return localStorage.getItem("lerntool_current_exam") || "skl_0705"; }
+    }
+    function examPoolId(examId){
+      const raw = String(examId || getActiveExamId() || "skl_0705");
+      if(raw === "skl_0705") return "SKL_07_05";
+      if(raw === "weitere_klausur") return "WEITERE_KLAUSUR";
+      return raw.trim().replace(/[^a-zA-Z0-9_-]+/g,"_").toUpperCase().slice(0,80) || "SKL_07_05";
+    }
+    const classPoolCardsCol = examId => collection(db, "lerntoolClasses", CLASS_ID, "classPools", examPoolId(examId), "cards");
 
     let fromFirebase = false;
     let lastUser = currentUserId();
     let unsubscribePrivateCards = null;
+    let unsubscribeClassPoolCards = null;
     let privateCardsCache = null;
     let sharedCardsCache = null;
+    let legacySharedCardsCache = null;
+    let lastExamPool = examPoolId(getActiveExamId());
 
-    status("Online aktiv: Klassenkarten werden gemeinsam angezeigt. Private Karten bleiben im eigenen Profil.", "online");
+    status("Online aktiv: Klassenkarten werden im gemeinsamen Klausur-Pool gespeichert. Private Karten bleiben im eigenen Profil.", "online");
 
     function safeId(prefix, item){
       return String(item && item.id ? item.id : prefix + "_" + Date.now() + "_" + Math.random().toString(16).slice(2));
@@ -8281,10 +8318,15 @@ body.admin-active .admin-only-hint{display:block}
       try{
         for(const item of (items || [])){
           const id = safeId("shared_card", item);
-          await setDoc(doc(classCol("sharedCards"), id), {
+          const examId = item.examId || getActiveExamId();
+          await setDoc(doc(classPoolCardsCol(examId), id), {
             ...item,
             id,
+            examId,
+            examTitle: item.examTitle || (examId === "skl_0705" ? "SKL 07.05." : examId),
             sharedWithClass: true,
+            hidden: false,
+            removedFromClass: false,
             sharedBy: item.sharedBy || currentUserName(),
             sharedOwnerId: item.sharedOwnerId || currentUserId(),
             updatedAt: serverTimestamp()
@@ -8370,11 +8412,19 @@ body.admin-active .admin-only-hint{display:block}
       return upsertSharedCards([card]);
     };
 
-    window.firebaseUnshareCardNow = function(id){
-      return deleteDoc(doc(classCol("sharedCards"), String(id))).catch(e=>{
+    window.firebaseUnshareCardNow = function(id, examId){
+      const activeExam = examId || getActiveExamId();
+      return Promise.all([
+        deleteDoc(doc(classPoolCardsCol(activeExam), String(id))).catch(()=>{}),
+        deleteDoc(doc(classCol("sharedCards"), String(id))).catch(()=>{})
+      ]).catch(e=>{
         console.error(e);
         status("Fehler beim Zurücknehmen der Klassenkarte: " + e.message, "error");
       });
+    };
+
+    window.firebaseDeleteSharedCardNow = function(id, examId){
+      return window.firebaseUnshareCardNow(id, examId);
     };
 
     window.saveCards = function(cards){
@@ -8412,7 +8462,13 @@ body.admin-active .admin-only-hint{display:block}
     };
 
     function applyCardCaches(){
-      const merged = mergeCards(privateCardsCache || [], sharedCardsCache || []);
+      const legacy = legacySharedCardsCache || [];
+      const currentPool = sharedCardsCache || [];
+      const byId = new Map();
+      [...legacy, ...currentPool].forEach(card=>{
+        if(card && card.id) byId.set(String(card.id), card);
+      });
+      const merged = mergeCards(privateCardsCache || [], [...byId.values()]);
       writeLocalCards(merged);
       rerenderAll();
     }
@@ -8438,10 +8494,29 @@ body.admin-active .admin-only-hint{display:block}
 
     onSnapshot(classCol("sharedCards"), snap=>{
       fromFirebase = true;
-      sharedCardsCache = snap.docs.map(d=>({id:d.id,...d.data()})).filter(card => card && card.sharedWithClass !== false && !card.removedFromClass);
+      legacySharedCardsCache = snap.docs.map(d=>({id:d.id,...d.data()})).filter(card => {
+        if(!card || card.sharedWithClass === false || card.removedFromClass || card.hidden) return false;
+        return !card.examId || card.examId === getActiveExamId();
+      });
       fromFirebase = false;
       applyCardCaches();
-    }, e=>status("Lesefehler Klassenkarten: " + e.message, "error"));
+    }, e=>status("Lesefehler alte Klassenkarten: " + e.message, "error"));
+
+    function listenForClassPoolCards(){
+      const examId = getActiveExamId();
+      lastExamPool = examPoolId(examId);
+      if(typeof unsubscribeClassPoolCards === "function"){
+        try{ unsubscribeClassPoolCards(); }catch(e){}
+      }
+      unsubscribeClassPoolCards = onSnapshot(classPoolCardsCol(examId), snap=>{
+        fromFirebase = true;
+        sharedCardsCache = snap.docs.map(d=>({id:d.id,...d.data()})).filter(card => card && card.sharedWithClass !== false && !card.removedFromClass && !card.hidden);
+        fromFirebase = false;
+        applyCardCaches();
+      }, e=>status("Lesefehler Klassenpool " + examPoolId(examId) + ": " + e.message, "error"));
+    }
+
+    listenForClassPoolCards();
 
     onSnapshot(classCol("words"), snap=>{
       fromFirebase = true;
@@ -8476,6 +8551,12 @@ body.admin-active .admin-only-hint{display:block}
         listenForPrivateCards();
         status("Profil gewechselt: " + uid + ". Private Daten werden geladen, Klassenmodus bleibt gemeinsam.", "online");
       }
+      const pool = examPoolId(getActiveExamId());
+      if(pool !== lastExamPool){
+        sharedCardsCache = null;
+        listenForClassPoolCards();
+        status("Klausur gewechselt: Klassenpool " + pool + " wird geladen.", "online");
+      }
     }, 1000);
 
     setTimeout(async()=>{
@@ -8488,7 +8569,7 @@ body.admin-active .admin-only-hint{display:block}
           await replaceArray(userColFor(uid, "cards"), getPrivateCardsOnly(localCards), "private_card");
         }
 
-        const sharedSnap = await getDocs(classCol("sharedCards"));
+        const sharedSnap = await getDocs(classPoolCardsCol(getActiveExamId()));
         if(sharedSnap.empty){
           await upsertSharedCards(getSharedCardsOnly(localCards));
         }
