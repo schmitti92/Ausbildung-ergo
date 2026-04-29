@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Klassen-Lerntool 2.0 – v67 Live Klassenmodus</title>
+  <title>Klassen-Lerntool 2.0 – v68 Klassenkarten Swipe Ansicht Final</title>
   <style>
     :root{
       --bg1:#f6efe4;
@@ -4058,7 +4058,83 @@ body.admin-active .admin-only-hint{display:block}
   font-weight:950;
 }
 
-</style>
+
+
+    /* V68: Klassenmodus-Karte kompakter, vollständig sichtbar + Wischgesten */
+    #classCardsSharedScreen{
+      max-width:980px !important;
+      padding-bottom:22px !important;
+      overflow:visible !important;
+    }
+
+    #classCardsSharedScreen .class-learn-top{ gap:10px !important; margin-top:14px !important; }
+    #classCardsSharedScreen .class-learn-stat{ padding:12px 16px !important; border-radius:18px !important; }
+    #classCardsSharedScreen .learn-progress{ margin-top:14px !important; padding:10px 14px !important; }
+
+    #classSharedLearnWrap{
+      margin-top:14px !important;
+      padding:0 4px 4px !important;
+      overflow:visible !important;
+      position:relative !important;
+      touch-action:pan-y !important;
+    }
+
+    #classSharedLearnWrap::before,
+    #classSharedLearnWrap::after{
+      position:absolute;
+      top:50%;
+      transform:translateY(-50%) scale(.94);
+      z-index:5;
+      opacity:0;
+      pointer-events:none;
+      padding:10px 14px;
+      border-radius:999px;
+      font-weight:950;
+      border:1px solid rgba(88,121,138,.14);
+      box-shadow:0 10px 24px rgba(33,64,82,.10);
+      transition:opacity .16s ease, transform .16s ease;
+      backdrop-filter:blur(10px);
+    }
+    #classSharedLearnWrap::before{ content:'↩ Weiter üben'; left:16px; background:rgba(255,248,237,.94); color:#735333; }
+    #classSharedLearnWrap::after{ content:'Gelernt ✓'; right:16px; background:rgba(232,249,238,.94); color:#1e6b42; }
+    #classSharedLearnWrap.swiping-left::before,
+    #classSharedLearnWrap.swiping-right::after{ opacity:1; transform:translateY(-50%) scale(1); }
+
+    #classSharedLearnCard.class-card-learn{
+      width:100% !important;
+      min-height:clamp(210px, 32vh, 300px) !important;
+      border-radius:30px !important;
+      transform-origin:center center !important;
+      transition:transform .18s ease, opacity .18s ease !important;
+      will-change:transform !important;
+    }
+    #classSharedLearnCard .learn-card-inner,
+    #classSharedLearnCard .learn-card-face{
+      min-height:clamp(210px, 32vh, 300px) !important;
+      border-radius:30px !important;
+    }
+    #classSharedLearnCard .learn-card-face{ padding:26px 28px !important; overflow:hidden !important; }
+    #classSharedLearnCard .learn-card-face h3{ max-width:720px !important; font-size:clamp(1.5rem, 3.1vw, 2.55rem) !important; line-height:1.14 !important; }
+    #classSharedLearnCard .learn-card-back p{ max-width:720px !important; font-size:clamp(1.05rem, 2.15vw, 1.38rem) !important; line-height:1.45 !important; }
+    #classCardsSharedScreen .class-tap-note{ margin-top:12px !important; width:min(760px,100%) !important; }
+    #classCardsSharedScreen .class-learn-actions-v21{ margin-top:12px !important; gap:10px !important; }
+    #classCardsSharedScreen .class-learn-actions-v21 button{ min-height:54px !important; }
+
+    @media(max-width:720px){
+      #classCardsSharedScreen{padding:20px !important;border-radius:26px !important;}
+      #classCardsSharedScreen .class-learn-top{grid-template-columns:repeat(3,minmax(0,1fr)) !important;}
+      #classCardsSharedScreen .class-learn-stat{padding:10px 8px !important;}
+      #classCardsSharedScreen .class-learn-stat strong{font-size:1.12rem !important;}
+      #classCardsSharedScreen .class-learn-stat span{font-size:.74rem !important;line-height:1.15 !important;}
+      #classSharedLearnCard.class-card-learn,
+      #classSharedLearnCard .learn-card-inner,
+      #classSharedLearnCard .learn-card-face{ min-height:clamp(190px, 30vh, 260px) !important; }
+      #classSharedLearnCard .learn-card-face{padding:22px 18px !important;}
+      #classSharedLearnWrap::before{left:10px;}
+      #classSharedLearnWrap::after{right:10px;}
+    }
+
+  </style>
 </head>
 <body>
   <main class="app">
@@ -4942,7 +5018,7 @@ body.admin-active .admin-only-hint{display:block}
           </div>
         </div>
 
-        <p class="tap-note class-tap-note">👆 Karte antippen = umdrehen · „Weiter üben“ lässt die Karte im Stapel · „Gelernt“ entfernt sie für dich</p>
+        <p class="tap-note class-tap-note">👆 Tippen = umdrehen · Nach links wischen = weiter üben · Nach rechts wischen = gelernt</p>
 
         <div class="class-learn-actions class-learn-actions-v21">
           <button id="classSharedFlipBtn" class="primary-btn flip-action" type="button">🔄 Umdrehen</button>
@@ -7903,6 +7979,92 @@ body.admin-active .admin-only-hint{display:block}
       loadSharedClassLearning();
     }
 
+    /* V68: Wischsteuerung für Klassenkarte
+       Links = weiter üben, Rechts = gelernt. Ein kurzer Tipp dreht weiterhin um. */
+    let classSharedSwipeStartX = 0;
+    let classSharedSwipeStartY = 0;
+    let classSharedSwipeDx = 0;
+    let classSharedSwipeActive = false;
+    let classSharedSwipeMoved = false;
+    window.__classSharedSwipeClickBlock = false;
+
+    function resetClassSharedSwipeVisual(){
+      if(classSharedLearnCard){
+        classSharedLearnCard.style.transform = '';
+        classSharedLearnCard.style.opacity = '';
+      }
+      if(classSharedLearnWrap){
+        classSharedLearnWrap.classList.remove('swiping-left','swiping-right');
+      }
+    }
+
+    function startClassSharedSwipe(event){
+      if(!classSharedDeck.length) return;
+      if(event.target && event.target.closest && event.target.closest('button')) return;
+      classSharedSwipeActive = true;
+      classSharedSwipeMoved = false;
+      classSharedSwipeDx = 0;
+      classSharedSwipeStartX = event.clientX || 0;
+      classSharedSwipeStartY = event.clientY || 0;
+      try{ classSharedLearnCard.setPointerCapture(event.pointerId); }catch(error){}
+    }
+
+    function moveClassSharedSwipe(event){
+      if(!classSharedSwipeActive || !classSharedDeck.length) return;
+      const x = event.clientX || 0;
+      const y = event.clientY || 0;
+      const dx = x - classSharedSwipeStartX;
+      const dy = y - classSharedSwipeStartY;
+      if(Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+      if(Math.abs(dy) > Math.abs(dx) * 1.25) return;
+      classSharedSwipeMoved = true;
+      classSharedSwipeDx = Math.max(-150, Math.min(150, dx));
+      const rotate = classSharedSwipeDx / 18;
+      const opacity = Math.max(.72, 1 - Math.abs(classSharedSwipeDx) / 420);
+      classSharedLearnCard.style.transform = `translateX(${classSharedSwipeDx}px) rotate(${rotate}deg)`;
+      classSharedLearnCard.style.opacity = String(opacity);
+      if(classSharedLearnWrap){
+        classSharedLearnWrap.classList.toggle('swiping-left', classSharedSwipeDx < -35);
+        classSharedLearnWrap.classList.toggle('swiping-right', classSharedSwipeDx > 35);
+      }
+    }
+
+    function endClassSharedSwipe(event){
+      if(!classSharedSwipeActive) return;
+      classSharedSwipeActive = false;
+      const dx = classSharedSwipeDx;
+      const didSwipe = classSharedSwipeMoved && Math.abs(dx) >= 85;
+      resetClassSharedSwipeVisual();
+      if(didSwipe){
+        window.__classSharedSwipeClickBlock = true;
+        setTimeout(()=>{ window.__classSharedSwipeClickBlock = false; }, 320);
+        if(dx < 0){
+          nextSharedClassCard('left');
+        } else {
+          markSharedClassCardLearned();
+        }
+      }
+      classSharedSwipeDx = 0;
+      classSharedSwipeMoved = false;
+    }
+
+    function cancelClassSharedSwipe(){
+      classSharedSwipeActive = false;
+      classSharedSwipeDx = 0;
+      classSharedSwipeMoved = false;
+      resetClassSharedSwipeVisual();
+    }
+
+    if(classSharedLearnCard){
+      classSharedLearnCard.addEventListener('pointerdown', startClassSharedSwipe);
+      classSharedLearnCard.addEventListener('pointermove', moveClassSharedSwipe);
+      classSharedLearnCard.addEventListener('pointerup', endClassSharedSwipe);
+      classSharedLearnCard.addEventListener('pointercancel', cancelClassSharedSwipe);
+      classSharedLearnCard.addEventListener('lostpointercapture', ()=>{
+        if(classSharedSwipeActive) cancelClassSharedSwipe();
+      });
+    }
+
     function renderSharedClassCards(){
       const shared = getSharedClassCards();
       const learned = new Set(getClassLearnedSharedIds().map(String));
@@ -7942,7 +8104,14 @@ body.admin-active .admin-only-hint{display:block}
       renderClassChat();
     });
 
-    classSharedLearnCard.addEventListener('click', flipSharedClassCard);
+    classSharedLearnCard.addEventListener('click', function(event){
+      if(window.__classSharedSwipeClickBlock){
+        event.preventDefault();
+        event.stopPropagation();
+        return;
+      }
+      flipSharedClassCard();
+    });
     classSharedFlipBtn.addEventListener('click', flipSharedClassCard);
     classSharedAgainBtn.addEventListener('click', ()=> nextSharedClassCard('left'));
     classSharedKnownBtn.addEventListener('click', markSharedClassCardLearned);
